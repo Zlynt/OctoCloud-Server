@@ -19,6 +19,7 @@ var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+// Allow Reserve Proxy
 app.UseForwardedHeaders();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
