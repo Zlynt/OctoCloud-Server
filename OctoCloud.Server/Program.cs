@@ -15,12 +15,17 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 });
 
+// Health Check
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 // Allow Reserve Proxy
 app.UseForwardedHeaders();
+// Add health check
+app.MapHealthChecks("/healthz");
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
