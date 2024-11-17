@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Net;
+using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Mvc;
 using OctoCloud.Server.Models;
 
 namespace OctoCloud.Server.Controllers
@@ -7,6 +9,8 @@ namespace OctoCloud.Server.Controllers
     [Route("[controller]")]
     public class MusicController : ControllerBase
     {
+        private static string fileStorageLocation = Environment.GetEnvironmentVariable("MUSIC_FOLDER") ?? "./music";
+
         private static readonly IEnumerable<MusicModel> musicList = new[]
         {
             new MusicModel{
@@ -21,5 +25,39 @@ namespace OctoCloud.Server.Controllers
 
         [HttpGet("")]
         public MusicModel[] Get() => musicList.ToArray();
+
+        [HttpGet("files/{*fileName}")]
+        public async Task<IActionResult> Download(string fileName)
+        {
+            try
+            {
+                fileName = WebUtility.UrlDecode(fileName);
+                var filePath = Path.Combine(fileStorageLocation, "files", fileName);
+                if (!System.IO.File.Exists(filePath)) { return NotFound(); }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+                var fileType = "application/octet-stream";
+                var result = new FileStreamResult(memory, fileType)
+                {
+                    FileDownloadName = Path.GetFileName(filePath)
+                };
+                Response.Headers.Add("Content-Disposition", new ContentDispositionHeaderValue("attachment")
+                {
+                    FileName = Path.GetFileName(filePath)
+                }.ToString());
+
+                return result;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while downloading file {fileName}: {e.Message}");
+                return StatusCode(500, "Internal server error");
+            }
+        }
     }
 }
