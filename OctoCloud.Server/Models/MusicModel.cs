@@ -7,6 +7,6 @@
         public string Album { get; set; }
         public string AlbumImageURL { get; set; }
         public string[] Artists { get; set; }
-        public string FilePath { get; set; }
+        public string StreamUrl { get; set; }
     }
 }
