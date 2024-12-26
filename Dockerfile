@@ -5,7 +5,7 @@ USER app
 WORKDIR /app
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS with-node
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS with-node
 RUN apt-get update
 RUN apt-get install curl
 RUN curl -sL https://deb.nodesource.com/setup_20.x | bash
