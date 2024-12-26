@@ -43,9 +43,14 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '^/music': {
+            '^/Music': {
                 target,
                 secure: false
+            },
+            '^/Music/files': { // Handle your specific route
+                target, // Adjust target if needed
+                changeOrigin: true,
+                rewrite: path => path.replace(/^\/Music\/files/, '/Music/files') // Adjust path if needed
             }
         },
         port: 5173,
