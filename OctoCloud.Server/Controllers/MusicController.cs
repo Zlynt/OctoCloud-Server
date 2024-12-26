@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.IO;
 
 using MusicObj = OctoCloud.Server.Music.Music;
+using MusicSettings = OctoCloud.Settings.Music;
+using Microsoft.Extensions.Options;
 
 namespace OctoCloud.Server.Controllers
 {
@@ -11,12 +13,14 @@ namespace OctoCloud.Server.Controllers
     [Route("[controller]")]
     public class MusicController : ControllerBase
     {
-        private static string fileStorageLocation = Environment.GetEnvironmentVariable("MUSIC_FOLDER") ?? "./music";
+        private readonly MusicSettings _settings;
 
-        public MusicController() : base() {
-            if (!Directory.Exists(fileStorageLocation)) Directory.CreateDirectory(fileStorageLocation);
+        public MusicController(IOptions<MusicSettings> settings) : base() {
+            _settings = settings.Value;
 
-            Console.WriteLine($"Music Folder Location: {fileStorageLocation}");
+            if (!Directory.Exists(_settings.Location)) Directory.CreateDirectory(_settings.Location);
+
+            Console.WriteLine($"Music Folder Location: {_settings.Location}");
         }
 
         [HttpGet("")]
@@ -24,9 +28,9 @@ namespace OctoCloud.Server.Controllers
             //musicList.ToArray();
             List<MusicObj> musics = new List<MusicObj>();
             int counter = 0;
-            foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(fileStorageLocation), "*", SearchOption.AllDirectories))
+            foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(_settings.Location), "*", SearchOption.AllDirectories))
             {
-                string remoteFilePath = localFilePath.Replace(Path.GetFullPath(fileStorageLocation), "/Music/files").Replace("\\", "/");
+                string remoteFilePath = localFilePath.Replace(Path.GetFullPath(_settings.Location), "/Music/files").Replace("\\", "/");
                 Console.WriteLine(localFilePath);
                 musics.Add(new MusicObj
                 {
@@ -45,7 +49,7 @@ namespace OctoCloud.Server.Controllers
         [HttpGet("files/{*fileName}")]
         public IActionResult Download(string fileName)
         {
-            var filePath = Path.GetFullPath(Path.Combine(fileStorageLocation, fileName));
+            var filePath = Path.GetFullPath(Path.Combine(_settings.Location, fileName));
 
             if (!System.IO.File.Exists(filePath))
             {
