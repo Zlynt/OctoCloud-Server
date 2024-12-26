@@ -1,8 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
-using OctoCloud.Server.Models;
 using System.IO;
+
+using MusicObj = OctoCloud.Server.Music.Music;
 
 namespace OctoCloud.Server.Controllers
 {
@@ -19,15 +20,15 @@ namespace OctoCloud.Server.Controllers
         }
 
         [HttpGet("")]
-        public MusicModel[] Get() {
+        public MusicObj[] Get() {
             //musicList.ToArray();
-            List<MusicModel> musics = new List<MusicModel>();
+            List<MusicObj> musics = new List<MusicObj>();
             int counter = 0;
             foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(fileStorageLocation), "*", SearchOption.AllDirectories))
             {
                 string remoteFilePath = localFilePath.Replace(Path.GetFullPath(fileStorageLocation), "/Music/files").Replace("\\", "/");
                 Console.WriteLine(localFilePath);
-                musics.Add(new MusicModel
+                musics.Add(new MusicObj
                 {
                     Id = counter+"",
                     Title = Path.GetFileNameWithoutExtension(remoteFilePath),
@@ -42,7 +43,7 @@ namespace OctoCloud.Server.Controllers
         }
 
         [HttpGet("files/{*fileName}")]
-        public async Task<IActionResult> Download(string fileName)
+        public IActionResult Download(string fileName)
         {
             var filePath = Path.GetFullPath(Path.Combine(fileStorageLocation, fileName));
 
