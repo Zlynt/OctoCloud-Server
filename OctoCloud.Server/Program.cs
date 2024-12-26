@@ -1,9 +1,16 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
+using MusicSettings = OctoCloud.Settings.Music;
 
 var builder = WebApplication.CreateBuilder(args);
+if(builder.Environment.EnvironmentName == "Development")
+    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+else 
+    builder.Configuration.AddJsonFile("appsettings.json", optional: false);
+builder.Configuration.AddEnvironmentVariables();
+builder.Services.Configure<MusicSettings>(builder.Configuration.GetSection("Music"));
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
