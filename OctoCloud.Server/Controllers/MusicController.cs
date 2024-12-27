@@ -54,7 +54,7 @@ namespace OctoCloud.Server.Controllers
                 
                 MusicObj musicObj = new MusicObj
                 {
-                    Id = musicFingerprint.ToString(),
+                    Id = Hash.GetHash(musicFingerprint.ToString()),
                     Title = Path.GetFileNameWithoutExtension(remoteFilePath),
                     //Artists = [],
                     //Album = "",
