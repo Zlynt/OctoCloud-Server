@@ -66,6 +66,9 @@ namespace OctoCloud.Server.Controllers
 
                     Console.WriteLine(apiReturn.Results);
                     foreach(Result result in apiReturn.Results){
+                        // If the list is empty skip
+                        if(!result.Recordings.Any()) continue;
+
                         foreach(Recording recording in result.Recordings) {
                             if(recording.Duration != musicFingerprint.Duration) continue;
                             // Title
@@ -74,6 +77,10 @@ namespace OctoCloud.Server.Controllers
                             musicObj.Id = recording.Id;
                             // Artists
                             LinkedList<string> artists = new LinkedList<string>();
+
+
+                            // If the list is empty skip
+                            if(!recording.Artists.Any()) continue;
                             foreach(Artist artist in recording.Artists){
                                 artists.AddLast(artist.Name);
                             }
