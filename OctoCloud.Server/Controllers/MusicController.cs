@@ -5,18 +5,31 @@ using System.IO;
 
 using MusicObj = OctoCloud.Server.Music.Music;
 using MusicSettings = OctoCloud.Settings.Music;
+using Fingerprint = OctoCloud.Server.Music.Fingerprint;
 using Microsoft.Extensions.Options;
+using OctoCloud.Server.Security;
+using OctoCloud.Server.Music;
+
+using MusicbrainzApiReturn = OctoCloud.Server.Musicbrainz.ApiReturn;
+using MusicbrainzClient = OctoCloud.Server.Musicbrainz.Client;
+using System.Text.Json;
+using OctoCloud.Server.Musicbrainz;
 
 namespace OctoCloud.Server.Controllers
 {
+
     [ApiController]
     [Route("[controller]")]
     public class MusicController : ControllerBase
     {
         private readonly MusicSettings _settings;
+        private Fingerprint _fingerprint;
+        private MusicbrainzClient _mbClient;
 
         public MusicController(IOptions<MusicSettings> settings) : base() {
             _settings = settings.Value;
+            _fingerprint = new Fingerprint();
+            _mbClient = new MusicbrainzClient(_settings.ApiKey);
 
             if (!Directory.Exists(_settings.Location)) Directory.CreateDirectory(_settings.Location);
 
@@ -24,23 +37,66 @@ namespace OctoCloud.Server.Controllers
         }
 
         [HttpGet("")]
-        public MusicObj[] Get() {
-            //musicList.ToArray();
+        public async Task<IEnumerable<MusicObj>> Get() {
             List<MusicObj> musics = new List<MusicObj>();
             int counter = 0;
             foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(_settings.Location), "*", SearchOption.AllDirectories))
             {
+                string extension = Path.GetExtension(localFilePath).ToLowerInvariant();
+                if (extension != ".mp3" && extension != ".wav" && extension != ".ogg" && extension != ".flac") { 
+                    continue;
+                }
+
                 string remoteFilePath = localFilePath.Replace(Path.GetFullPath(_settings.Location), "/Music/files").Replace("\\", "/");
                 Console.WriteLine(localFilePath);
-                musics.Add(new MusicObj
+
+                AudioFingerprint musicFingerprint = _fingerprint.GetFingerprint($"\"{localFilePath}\"");
+                
+                MusicObj musicObj = new MusicObj
                 {
-                    Id = counter+"",
+                    Id = musicFingerprint.ToString(),
                     Title = Path.GetFileNameWithoutExtension(remoteFilePath),
                     //Artists = [],
                     //Album = "",
                     //AlbumImageURL = "",
                     StreamUrl = remoteFilePath
-                });
+                };
+                try{
+                    MusicbrainzApiReturn apiReturn = await _mbClient.GetInfoFromFingerprint(musicFingerprint.Fingerprint, musicFingerprint.Duration);
+
+                    Console.WriteLine(apiReturn.Results);
+                    foreach(Result result in apiReturn.Results){
+                        foreach(Recording recording in result.Recordings) {
+                            if(recording.Duration != musicFingerprint.Duration) continue;
+                            // Title
+                            musicObj.Title = recording.Title;
+                            // Id
+                            musicObj.Id = recording.Id;
+                            // Artists
+                            LinkedList<string> artists = new LinkedList<string>();
+                            foreach(Artist artist in recording.Artists){
+                                artists.AddLast(artist.Name);
+                            }
+                            musicObj.Artists = artists.ToArray<string>();
+
+                            ReleaseGroup releaseGroup = recording.ReleaseGroups .FirstOrDefault(rg => rg.Type == "Single") ?? 
+                                                        recording.ReleaseGroups.FirstOrDefault();
+
+                            if (releaseGroup != null) { 
+                                // Album Name
+                                musicObj.Album = releaseGroup.Title; 
+                                // Album Image
+                                musicObj.AlbumImageURL = $"https://coverartarchive.org/release-group/{releaseGroup.Id}/front"; 
+                            }
+                            
+                        }
+                    }
+                } catch (HttpRequestException e) { 
+                    Console.WriteLine("\nException Caught!");
+                    Console.WriteLine("Message: {0}", e.Message);
+                } finally {
+                    musics.Add(musicObj);
+                }
                 counter++;
             }
             return musics.ToArray();

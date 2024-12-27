@@ -1,6 +1,9 @@
+using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
+using SystemInfo = OctoCloud.Settings.SystemInfo;
 using MusicSettings = OctoCloud.Settings.Music;
+using Fingerprint = OctoCloud.Server.Music.Fingerprint;
 
 var builder = WebApplication.CreateBuilder(args);
 if(builder.Environment.EnvironmentName == "Development")
@@ -45,5 +48,15 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.MapFallbackToFile("/index.html");
+
+Fingerprint fingerprint = new Fingerprint();
+
+//Console.WriteLine("Current Path: " + System.IO.Directory.GetCurrentDirectory());
+Console.WriteLine("================ SYSTEM INFORMATION ================");
+Console.WriteLine("OS: " + SystemInfo.getOS());
+Console.WriteLine("Platform: " + SystemInfo.GetPlatform());
+Console.WriteLine("Architecture: " + SystemInfo.getCPUArch());
+Console.WriteLine("Chromaprint location: " + fingerprint._chromaPath);
+Console.WriteLine("====================================================");
 
 app.Run();
