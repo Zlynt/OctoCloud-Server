@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 
 interface Artist {
@@ -20,33 +20,60 @@ interface Music {
 
 function App() {
     const [musics, setMusics] = useState<Music[]>();
-
+    const [currentSong, setCurrentSong] = useState<string>("");
+    const audioRef = useRef<HTMLAudioElement>(null);
+    
     useEffect(() => {
         populateMusicData();
     }, []);
 
+    const determineMimeType = (filePath: string) => { 
+        const extension = filePath.split('.').pop()?.toLowerCase(); 
+        switch (extension) { 
+            case 'mp3': return 'audio/mpeg'; 
+            case 'wav': return 'audio/wav'; 
+            case 'ogg': return 'audio/ogg'; 
+            case 'flac': return 'audio/flac'; 
+            default: return 'audio/mpeg'; 
+        } 
+    };
+
     const contents = musics === undefined
         ? <p><em>Please wait while we load your experience.</em></p>
-        : <table className="table table-striped" aria-labelledby="tabelLabel">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Artist</th>
-                    <th>Album</th>
-                    <th>URL</th>
-                </tr>
-            </thead>
-            <tbody>
-                {musics.map(music =>
-                    <tr key={music.Id}>
-                        <td>{music.Title}</td>
-                        <td>{music.Artists? music.Artists.map((artist: Artist) => artist.Name).join(", ") : "Unkown"}</td>
-                        <td>{music.Album?.Name ?? "Unkown"}</td>
-                        <td><a href={music.StreamUrl}>Listen</a></td>
+        : <>
+             <audio controls ref={audioRef}>
+                <source src={currentSong} type="audio/mpeg"/>
+            </audio> 
+            <table className="table table-striped" aria-labelledby="tabelLabel">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Artist</th>
+                        <th>Album</th>
+                        <th>Action</th>
                     </tr>
-                )}
-            </tbody>
-        </table>;
+                </thead>
+                <tbody>
+                    {musics.map(music =>
+                        <tr key={music.Id}>
+                            <td>{music.Title}</td>
+                            <td>{music.Artists? music.Artists.map((artist: Artist) => artist.Name).join(", ") : "Unkown"}</td>
+                            <td>{music.Album?.Name ?? "Unkown"}</td>
+                            <td><a href="#" onClick={() => {
+                                setCurrentSong(music.StreamUrl);
+                                if(audioRef.current) {
+                                    audioRef.current.src = music.StreamUrl;
+                                    console.log("Playing: " + music.StreamUrl);
+                                    //@ts-ignore
+                                    audioRef.current.type = determineMimeType(music.StreamUrl);
+                                    audioRef.current.play();
+                                }
+                            }}>Listen</a></td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </>;
 
     return (
         <div>
