@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using DatabaseClass = OctoCloud.Server.Data.Database;
 
 namespace OctoCloud.Server.Models.Music
@@ -26,11 +27,17 @@ namespace OctoCloud.Server.Models.Music
         }
         
 
+        [JsonPropertyName("Id")]
         public string Id { get; set; }
+        [JsonPropertyName("Title")]
         public string Title { get; set; }
+        [JsonPropertyName("Album")]
         public Album? Album { get; set; }
+        [JsonPropertyName("Artists")]
         public Artist[]? Artists { get; set; }
+        [JsonPropertyName("StreamUrl")]
         public string StreamUrl { get; set; }
+        [JsonIgnore]
         public string LocalPath { get; set; }
 
         private Music(): base() {
@@ -103,6 +110,23 @@ namespace OctoCloud.Server.Models.Music
             throw new Exception("Music not found");
         }
 
+        public static Music[] GetAllMusic() {
+            string query = """
+            SELECT * FROM "Music";
+            """;
+            Dictionary<string, object> parameters = new Dictionary<string, object> { };
+            Dictionary<string, Type> columns = new Dictionary<string, Type>{
+                { "Id", typeof(string) }
+            };
+            var results = DatabaseClass.Instance().Get(query, parameters, columns);
+            
+            LinkedList<Music> toReturn = new LinkedList<Music>();
+            foreach(var row in results){
+                toReturn.AddLast(new Music(row["Id"]));
+            }
+
+            return toReturn.ToArray<Music>();
+        }
 
         public static Music Create(
             string id, string title,

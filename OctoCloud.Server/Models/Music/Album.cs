@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using DatabaseClass = OctoCloud.Server.Data.Database;
 
 namespace OctoCloud.Server.Models.Music
@@ -20,9 +22,14 @@ namespace OctoCloud.Server.Models.Music
             TableLayout.CreateTable(DbSchema);
         }
 
-        public string Id;
-        public string Name;
-        public string ImageUrl;
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("Name")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("ImageUrl")]
+        public string ImageUrl { get; set; }
 
         private Album(): base() {
             Database = DatabaseClass.Instance();
@@ -42,13 +49,15 @@ namespace OctoCloud.Server.Models.Music
             };
             Dictionary<string, Type> columns = new Dictionary<string, Type>{
                 { "Id", typeof(string) },
-                { "Name", typeof(string) }
+                { "Name", typeof(string) },
+                { "ImageUrl", typeof(string) }
             };
             var rows = DatabaseClass.Instance().Get(query, parameters, columns);
             if(rows.Length == 0) throw new Exception("Album not found");
             foreach(var row in rows){
                 this.Id = row["Id"];
                 this.Name = row["Name"];
+                this.ImageUrl = row["ImageUrl"];
             }
         }
 

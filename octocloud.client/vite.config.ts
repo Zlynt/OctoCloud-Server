@@ -43,7 +43,7 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '^/Music': {
+            '^/Music/List': {
                 target,
                 secure: false
             },

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using DatabaseClass = OctoCloud.Server.Data.Database;
 
 namespace OctoCloud.Server.Models.Music
@@ -19,9 +21,11 @@ namespace OctoCloud.Server.Models.Music
             TableLayout.CreateTable(DbSchema);
         }
 
-        public string Id;
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
 
-        public string Name;
+        [JsonPropertyName("Name")]
+        public string Name { get; set; }
 
         private Artist(): base() {
             Database = DatabaseClass.Instance();
@@ -72,6 +76,7 @@ namespace OctoCloud.Server.Models.Music
 
             return new Artist(id);
         }
+
     }
 
 }

@@ -1,6 +1,6 @@
 @OctoCloud.Server_HostAddress = http://localhost:5249
 
-GET {{OctoCloud.Server_HostAddress}}/weatherforecast/
+GET {{OctoCloud.Server_HostAddress}}/Music/
 Accept: application/json
 
 ###

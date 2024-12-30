@@ -16,6 +16,7 @@ using ArtistModel   = OctoCloud.Server.Models.Music.Artist;
 using AlbumModel    = OctoCloud.Server.Models.Music.Album;
 using OctoCloud.Server.Clients.Musicbrainz;
 using System.Reflection;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 if(builder.Environment.EnvironmentName == "Development")
@@ -119,7 +120,6 @@ Console.WriteLine("Initialized Artist's Db Table");
 AlbumModel.CreateTable();
 Console.WriteLine("Initialized Album's Db Table");
 
-
 // Scan and parse the songs
 foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(musicSettings.Location), "*", SearchOption.AllDirectories))
 {
@@ -146,8 +146,10 @@ foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(musicSettin
         AudioFingerprint musicFingerprint = acoustIDClient.GetFingerprint($"\"{localFilePath}\"");
         musicMatch = await musicbrainzClient.GetBestMatchFromFingerprint(musicFingerprint.Fingerprint, musicFingerprint.Duration);
     }catch(Exception ex){
-        if(ex.Message == "Music not found" || ex.Message == "Could not parse audio duration, got 0") continue;
-        else{
+        if(ex.Message == "Music not found" || ex.Message == "Could not parse audio duration, got 0"){
+            Console.WriteLine("Could not parse audio file: " + localFilePath);
+            continue;
+        } else {
             MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
             BindingFlags.Instance | BindingFlags.NonPublic);
             preserveStackTrace.Invoke(ex, null);
@@ -212,5 +214,4 @@ foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(musicSettin
 
 }
 
-
-//app.Run();
+app.Run();
