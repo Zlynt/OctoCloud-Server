@@ -2,8 +2,13 @@ using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
-
-using OctoCloud.Server.Database;
+using System.Text.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+// Database
+using DatabaseClass =  OctoCloud.Server.Data.Database;
+// Models
+using UserModel = OctoCloud.Server.Models.User;
 
 namespace OctoCloud.Server.Controllers
 {
@@ -19,15 +24,23 @@ namespace OctoCloud.Server.Controllers
 
         public AccountController() : base() { }
 
-        [HttpPost("login")]
+        [HttpPost("Login")]
         public IActionResult Login([FromBody] LoginRequest loginRequest){
             try
             {
-                User user = new User(loginRequest.Username);
+                UserModel user = new UserModel(loginRequest.Username);
 
                 if(user.VerifyPassword(loginRequest.Password)){
                     // Assign user to the current session
-                    HttpContext.Session.SetString("Username", user.Username);
+                    //HttpContext.Session.SetString("Username", user.Username);
+
+                    string userJson = JsonSerializer.Serialize(user);
+                    HttpContext.Session.SetString("User", userJson);
+                    List<Claim> claims = new List<Claim> { new Claim(ClaimTypes.Name, user.Username)};
+                    ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, "UserSessionAuth");
+                    AuthenticationProperties authenticationProperties = new AuthenticationProperties { IsPersistent = true };
+
+                    HttpContext.SignInAsync("UserSessionAuth", new ClaimsPrincipal(claimsIdentity), authenticationProperties).Wait();
 
                     return Ok(new { Message = "Login successful" } );
                 } else {
@@ -39,6 +52,25 @@ namespace OctoCloud.Server.Controllers
                     new { Message = "An error occurred", Details = ex.Message }
                 );
             }
+        }
+
+        [HttpPost("Logout")] 
+        public IActionResult Logout() { 
+            HttpContext.Session.Clear();
+            HttpContext.SignOutAsync("UserSessionAuth").Wait();
+            return Ok(new { Message = "Logout successful" });
+        }
+
+        [HttpGet("Current-User")] 
+        public IActionResult GetCurrentUser() { 
+            // Retrieve user object from session
+            string userJson = HttpContext.Session.GetString("User"); 
+            if (string.IsNullOrEmpty(userJson)) { 
+                return Unauthorized(new { Message = "No user is currently logged in" });
+            }
+            UserModel user = JsonSerializer.Deserialize<UserModel>(userJson);
+
+            return Ok(new { Username = user.Username });
         }
     }
 }

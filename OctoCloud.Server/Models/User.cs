@@ -1,15 +1,15 @@
 using OctoCloud.Server.Security;
-using DatabaseClass = OctoCloud.Server.Database.Database;
+using DatabaseClass = OctoCloud.Server.Data.Database;
 
-namespace OctoCloud.Server.Database
+namespace OctoCloud.Server.Models
 {
     public class User: TableLayout
     {
         // Database connection
         private DatabaseClass Database;
         // Db Schema
-        private static readonly string DbSchema = """
-        CREATE TABLE IF NOT EXISTS "users" (
+        private static new readonly string DbSchema = """
+        CREATE TABLE IF NOT EXISTS "User" (
             "username" VARCHAR(64) NOT NULL,
             "password" varchar(255) NOT NULL,
             "created_at" timestamp NOT NULL DEFAULT NOW(),
@@ -27,13 +27,13 @@ namespace OctoCloud.Server.Database
                 password = Hash.CreatePasswordHash(value);
                 this.Database.Update(
                 """
-                    UPDATE "users"
+                    UPDATE "User"
                     SET "password" = @Password, "updated_at" = NOW()
                     WHERE "username" = @Username;
                 """,
-                new Dictionary<string, string>{
-                    { "Password", password },
-                    { "Username", this.Username }
+                new Dictionary<string, object>{
+                    { "Password", password.ToString() },
+                    { "Username", this.Username.ToString() }
                 }
                 );
                 this.RefreshInfo();
@@ -58,19 +58,20 @@ namespace OctoCloud.Server.Database
 
         private void RefreshInfo() {
             string query = """
-            SELECT * FROM "users" WHERE "users"."username" = @Username ;
+            SELECT * FROM "User" WHERE "User"."username" = @Username ;
             """;
-            Dictionary<string, string> parameters = new Dictionary<string, string> { 
+            Dictionary<string, object> parameters = new Dictionary<string, object> { 
                 { "@Username", this.Username }
             };
-
-            using (var reader = this.Database.Get(query, parameters))
-            {
-                if(reader.Read()){
-                    password        = reader["password"].ToString(); // Don't use the set from Password
-                    this.CreatedAt  = Convert.ToDateTime(reader["created_at"]);
-                    this.UpdatedAt  = Convert.ToDateTime(reader["updated_at"]);
-                }else throw new Exception("User not found");
+            Dictionary<string, Type> columns = new Dictionary<string, Type>{
+                { "password", typeof(string) },
+                { "created_at", typeof(string) },
+                { "updated_at", typeof(string) }
+            };
+            foreach(var row in DatabaseClass.Instance().Get(query, parameters, columns)){
+                    password        = row["password"]; // Don't use the set from Password
+                    this.CreatedAt  = Convert.ToDateTime(row["created_at"]);
+                    this.UpdatedAt  = Convert.ToDateTime(row["updated_at"]);
             }
         }
 
@@ -86,7 +87,7 @@ namespace OctoCloud.Server.Database
             if(username != username.ToLower()) throw new Exception("Username can only have lower caracters");
 
             string query = """
-            INSERT INTO "users" (
+            INSERT INTO "User" (
                 "username",
                 "password",
                 "created_at", "updated_at"
@@ -97,17 +98,17 @@ namespace OctoCloud.Server.Database
             );
             """;
 
-            Dictionary<string, string> parameters = new Dictionary<string, string> {
-                { "Username", username },
-                { "Password", Hash.CreatePasswordHash(password) }
+            Dictionary<string, object> parameters = new Dictionary<string, object> {
+                { "Username", username.ToString() },
+                { "Password", Hash.CreatePasswordHash(password).ToString() }
             };
 
-            Database.Instance().Insert(query, parameters);
+            DatabaseClass.Instance().Insert(query, parameters);
             return new User(username);
         }
 
-        public static new void CreateTable() {
-            Database.Instance().CreateTable(DbSchema);
+        public static void CreateTable() {
+            TableLayout.CreateTable(DbSchema);
         }
 
         public bool VerifyPassword(string password) {

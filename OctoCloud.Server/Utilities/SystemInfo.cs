@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace OctoCloud.Settings
 {
-    public static class SystemInfo{
+    public static class SystemInfo {
 
         public static OSPlatform GetPlatform() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
