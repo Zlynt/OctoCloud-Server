@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using SystemInfo = OctoCloud.Settings.SystemInfo;
 using MusicSettings = OctoCloud.Settings.Music;
+using RedisSettings = OctoCloud.Settings.Redis;
 using DatabaseSettings = OctoCloud.Settings.Database;
 using AcoustIDClient = OctoCloud.Server.Clients.Musicbrainz.AcoustIDClient;
 using AudioFingerprint = OctoCloud.Server.Clients.Musicbrainz.AudioFingerprint;
@@ -26,6 +27,20 @@ else
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.Configure<MusicSettings>(builder.Configuration.GetSection("Music"));
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("Database"));
+builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redis"));
+
+// Add Redis services
+builder.Services.AddStackExchangeRedisCache(options => {
+    var redisSettings = builder.Configuration.GetSection("Redis").Get<RedisSettings>();
+    options.Configuration = redisSettings.Configuration;
+    options.InstanceName = redisSettings.InstanceName;
+    options.ConfigurationOptions = new StackExchange.Redis.ConfigurationOptions
+    {
+        EndPoints = { redisSettings.Configuration },
+        User = redisSettings.Username ,
+        Password = redisSettings.Password
+    };
+});
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -52,7 +67,7 @@ builder.Services.AddAuthentication("UserSessionAuth").AddCookie("UserSessionAuth
 });
 
 // Add Session services
-builder.Services.AddDistributedMemoryCache(); 
+builder.Services.AddDistributedMemoryCache();
 // Adds a default in-memory implementation of IDistributedCache
 builder.Services.AddSession(options => { 
     options.IdleTimeout = TimeSpan.FromDays(1); // Set session timeout 

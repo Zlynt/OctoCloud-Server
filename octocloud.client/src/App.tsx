@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 
+interface Artist {
+    Id: string;
+    Name: string;
+}
+interface Album {
+    Id: string;
+    Name: string;
+    ImageUrl: string;
+}
 interface Music {
     Id: string;
     Title: string;
-    Album?: {
-        Id: string;
-        Name: string;
-        ImageUrl: string;
-    }
-    Artists: {
-        Id: string;
-        Name: string;
-    }
+    Album?: Album;
+    Artists: Array<Artist>;
     StreamUrl: string;
 }
 
@@ -38,7 +40,7 @@ function App() {
                 {musics.map(music =>
                     <tr key={music.Id}>
                         <td>{music.Title}</td>
-                        <td>{music.Artists? music.Artists.join(",") : "Unkown"}</td>
+                        <td>{music.Artists? music.Artists.map((artist: Artist) => artist.Name).join(", ") : "Unkown"}</td>
                         <td>{music.Album?.Name ?? "Unkown"}</td>
                         <td><a href={music.StreamUrl}>Listen</a></td>
                     </tr>

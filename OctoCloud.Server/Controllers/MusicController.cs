@@ -22,6 +22,8 @@ using MusicbrainzArtist = OctoCloud.Server.Clients.Musicbrainz.Artist;
 using MusicbrainzReleaseGroup = OctoCloud.Server.Clients.Musicbrainz.ReleaseGroup;
 // Music Model
 using MusicModel = OctoCloud.Server.Models.Music.Music;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text;
 
 namespace OctoCloud.Server.Controllers
 {
@@ -31,11 +33,14 @@ namespace OctoCloud.Server.Controllers
     public class MusicController : ControllerBase
     {
         private readonly MusicSettings _settings;
+        private readonly IDistributedCache _distributedCache;
         private Fingerprint _fingerprint;
         private MusicbrainzClient _mbClient;
 
-        public MusicController(IOptions<MusicSettings> settings) : base() {
+        public MusicController(IOptions<MusicSettings> settings, IDistributedCache distributedCache) : base() {
             _settings = settings.Value;
+            _distributedCache = distributedCache;
+
             _fingerprint = new Fingerprint();
             _mbClient = new MusicbrainzClient(_settings.ApiKey);
 
@@ -45,8 +50,32 @@ namespace OctoCloud.Server.Controllers
 
         //[Authorize]
         [HttpGet("List")]
-        public async Task<IEnumerable<MusicModel>> List() {
-            return MusicModel.GetAllMusic();
+        public async Task<IActionResult> List() {
+            string cacheKey = "Music/List";
+
+            var cacheEntry = await _distributedCache.GetAsync(cacheKey);
+            string musicListSerializedRedis;
+            if(cacheEntry != null) {
+                musicListSerializedRedis = Encoding.UTF8.GetString(cacheEntry);
+                return Content(musicListSerializedRedis, "application/json");
+            }
+
+            MusicModel[] musicList = MusicModel.GetAllMusic();
+
+            musicListSerializedRedis = JsonSerializer.Serialize(musicList);
+            
+            var cacheOptions = new DistributedCacheEntryOptions()
+                .SetAbsoluteExpiration(DateTime.Now.AddMinutes(30))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            await _distributedCache.SetAsync(
+                cacheKey, 
+                Encoding.UTF8.GetBytes(musicListSerializedRedis),
+                cacheOptions
+            );
+
+
+            return Content(musicListSerializedRedis, "application/json");
         }
 
         //[Authorize]
