@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using SystemInfo = OctoCloud.Settings.SystemInfo;
 using MusicSettings = OctoCloud.Settings.Music;
+using DatabaseSettings = OctoCloud.Settings.Database;
 using AcoustIDClient = OctoCloud.Server.Clients.Musicbrainz.AcoustIDClient;
 using AudioFingerprint = OctoCloud.Server.Clients.Musicbrainz.AudioFingerprint;
 using MusicbrainzMatch = OctoCloud.Server.Clients.Musicbrainz.MusicMatch;
@@ -23,6 +24,7 @@ else
     builder.Configuration.AddJsonFile("appsettings.json", optional: false);
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.Configure<MusicSettings>(builder.Configuration.GetSection("Music"));
+builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("Database"));
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -84,9 +86,15 @@ app.MapFallbackToFile("/index.html");
 
 // Get music settings
 var musicSettings = app.Services.GetRequiredService<IOptions<MusicSettings>>().Value;
+// Get database settings 
+var databaseSettings = app.Services.GetRequiredService<IOptions<DatabaseSettings>>().Value; 
 
 // Initialize the DB
-DatabaseClass database = DatabaseClass.Instance();
+DatabaseClass database = DatabaseClass.Instance(
+   databaseSettings.Host, databaseSettings.Port,
+   databaseSettings.Name,
+   databaseSettings.User, databaseSettings.Password
+);
 
 // Musicbrainz
 AcoustIDClient acoustIDClient = new AcoustIDClient();
