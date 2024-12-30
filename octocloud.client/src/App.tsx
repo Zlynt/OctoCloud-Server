@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react';
 import './App.css';
 
 interface Music {
-    id: string;
-    title: string;
-    album?: string;
-    streamUrl: string;
-    artists?: string[];
+    Id: string;
+    Title: string;
+    Album?: {
+        Id: string;
+        Name: string;
+        ImageUrl: string;
+    }
+    Artists: {
+        Id: string;
+        Name: string;
+    }
+    StreamUrl: string;
 }
 
 function App() {
@@ -29,11 +36,11 @@ function App() {
             </thead>
             <tbody>
                 {musics.map(music =>
-                    <tr key={music.id}>
-                        <td>{music.title}</td>
-                        <td>{music.artists? music.artists.join(",") : "Unkown"}</td>
-                        <td>{music.album ?? "Unkown"}</td>
-                        <td><a href={music.streamUrl}>Listen</a></td>
+                    <tr key={music.Id}>
+                        <td>{music.Title}</td>
+                        <td>{music.Artists? music.Artists.join(",") : "Unkown"}</td>
+                        <td>{music.Album?.Name ?? "Unkown"}</td>
+                        <td><a href={music.StreamUrl}>Listen</a></td>
                     </tr>
                 )}
             </tbody>
@@ -47,7 +54,7 @@ function App() {
     );
 
     async function populateMusicData() {
-        const response = await fetch('Music');
+        const response = await fetch('Music/List');
         const data = await response.json();
         setMusics(data);
     }
