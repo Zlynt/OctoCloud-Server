@@ -136,97 +136,123 @@ AlbumModel.CreateTable();
 Console.WriteLine("Initialized Album's Db Table");
 
 // Scan and parse the songs
-foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(musicSettings.Location), "*", SearchOption.AllDirectories))
-{
-    string extension = Path.GetExtension(localFilePath).ToLowerInvariant();
-    if (extension != ".mp3" && extension != ".wav" && extension != ".ogg" && extension != ".flac") { 
-        continue;
-    }
-
-    // Do not parse again if the music file's info already exists on the database
-    try {
-        MusicModel.FindMusicByLocalFilePath(localFilePath);
-        Console.WriteLine("Already parsed: " + localFilePath);
-        continue;
-    } catch (Exception ex) {}
-
-    // If song does not exist, insert it.
-
-    string remoteFilePath = localFilePath.Replace(Path.GetFullPath(musicSettings.Location), "/Music/files").Replace("\\", "/");
-
-    // Try to find music info based on its fingerprint
-    MusicbrainzMatch musicMatch;
-    try{ 
-        Console.WriteLine("Finding match for song...");
-        AudioFingerprint musicFingerprint = acoustIDClient.GetFingerprint($"\"{localFilePath}\"");
-        musicMatch = await musicbrainzClient.GetBestMatchFromFingerprint(musicFingerprint.Fingerprint, musicFingerprint.Duration);
-    }catch(Exception ex){
-        if(ex.Message == "Music not found" || ex.Message == "Could not parse audio duration, got 0"){
-            Console.WriteLine("Could not parse audio file: " + localFilePath);
+bool isExecuting = false;
+async void UpdateContent() {
+    isExecuting = true;
+    Console.WriteLine("Updating music database...");
+    foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(musicSettings.Location), "*", SearchOption.AllDirectories))
+    {
+        string extension = Path.GetExtension(localFilePath).ToLowerInvariant();
+        if (extension != ".mp3" && extension != ".wav" && extension != ".ogg" && extension != ".flac") { 
             continue;
-        } else {
-            MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-            preserveStackTrace.Invoke(ex, null);
-            throw;
         }
-    }
-    // Create artists if does not exist
-    LinkedList<ArtistModel> artists = new LinkedList<ArtistModel>();
-    foreach(Artist artist in musicMatch.Artists) {
+
+        // Do not parse again if the music file's info already exists on the database
+        try {
+            MusicModel.FindMusicByLocalFilePath(localFilePath);
+            Console.WriteLine("Already parsed: " + localFilePath);
+            continue;
+        } catch (Exception ex) {}
+
+        // If song does not exist, insert it.
+
+        string remoteFilePath = localFilePath.Replace(Path.GetFullPath(musicSettings.Location), "/Music/files").Replace("\\", "/");
+
+        // Try to find music info based on its fingerprint
+        MusicbrainzMatch musicMatch;
         try{ 
-            artists.AddLast(new ArtistModel(artist.Id));
-        } catch(Exception ex) {
-            if(ex.Message == "Artist not found")
-                artists.AddLast(ArtistModel.Create(artist.Id, artist.Name));
-            else {
+            Console.WriteLine("Finding match for song...");
+            AudioFingerprint musicFingerprint = acoustIDClient.GetFingerprint($"\"{localFilePath}\"");
+            musicMatch = await musicbrainzClient.GetBestMatchFromFingerprint(musicFingerprint.Fingerprint, musicFingerprint.Duration);
+        }catch(Exception ex){
+            if(ex.Message == "Music not found" || ex.Message == "Could not parse audio duration, got 0"){
+                Console.WriteLine("Could not parse audio file: " + localFilePath);
+                continue;
+            } else {
                 MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
                 BindingFlags.Instance | BindingFlags.NonPublic);
                 preserveStackTrace.Invoke(ex, null);
                 throw;
             }
         }
-    }
-
-    // Create album if it does not exist
-    AlbumModel album;
-    try{ 
-        album = new AlbumModel(musicMatch.ReleaseGroup.Id);
-    } catch(Exception ex) {
-        if(ex.Message == "Album not found")
-            album = AlbumModel.Create(musicMatch.ReleaseGroup.Id, musicMatch.ReleaseGroup.Title);
-        else{
-            MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-            preserveStackTrace.Invoke(ex, null);
-            throw;
+        // Create artists if does not exist
+        LinkedList<ArtistModel> artists = new LinkedList<ArtistModel>();
+        foreach(Artist artist in musicMatch.Artists) {
+            try{ 
+                artists.AddLast(new ArtistModel(artist.Id));
+            } catch(Exception ex) {
+                if(ex.Message == "Artist not found")
+                    artists.AddLast(ArtistModel.Create(artist.Id, artist.Name));
+                else {
+                    MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                    preserveStackTrace.Invoke(ex, null);
+                    throw;
+                }
+            }
         }
+
+        // Create album if it does not exist
+        AlbumModel album;
+        try{ 
+            album = new AlbumModel(musicMatch.ReleaseGroup.Id);
+        } catch(Exception ex) {
+            if(ex.Message == "Album not found")
+                album = AlbumModel.Create(musicMatch.ReleaseGroup.Id, musicMatch.ReleaseGroup.Title);
+            else{
+                MethodInfo preserveStackTrace = typeof(Exception).GetMethod("InternalPreserveStackTrace",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+                preserveStackTrace.Invoke(ex, null);
+                throw;
+            }
+        }
+
+
+        // Create music if does not exist
+        MusicModel music;
+        try{ 
+            music = new MusicModel(musicMatch.Id);
+        } catch(Exception ex) {
+            if(ex.Message == "Music not found")
+                music = MusicModel.Create(
+                    musicMatch.Id, musicMatch.Title,
+                    album, artists.ToArray<ArtistModel>(),
+                    remoteFilePath, localFilePath
+                );
+            else throw ex;
+        }
+
+        Console.WriteLine("================ Music Match ================");
+        Console.WriteLine("-> Title: " + music.Title);
+        Console.WriteLine("-> Artists: " + string.Join(", ", music.Artists.Select(artist => artist.Name).ToArray<string>()));
+        Console.WriteLine("-> Album: " + music.Album.Name);
+        Console.WriteLine("-> Album Image: " + music.Album.ImageUrl);
+        Console.WriteLine("-> API Path: " + music.StreamUrl);
+        Console.WriteLine("-> File Path: " + music.LocalPath);
+        Console.WriteLine("=======================================");
+
     }
-
-
-    // Create music if does not exist
-    MusicModel music;
-    try{ 
-        music = new MusicModel(musicMatch.Id);
-    } catch(Exception ex) {
-        if(ex.Message == "Music not found")
-            music = MusicModel.Create(
-                musicMatch.Id, musicMatch.Title,
-                album, artists.ToArray<ArtistModel>(),
-                remoteFilePath, localFilePath
-            );
-        else throw ex;
-    }
-
-    Console.WriteLine("================ Music Match ================");
-    Console.WriteLine("-> Title: " + music.Title);
-    Console.WriteLine("-> Artists: " + string.Join(", ", music.Artists.Select(artist => artist.Name).ToArray<string>()));
-    Console.WriteLine("-> Album: " + music.Album.Name);
-    Console.WriteLine("-> Album Image: " + music.Album.ImageUrl);
-    Console.WriteLine("-> API Path: " + music.StreamUrl);
-    Console.WriteLine("-> File Path: " + music.LocalPath);
-    Console.WriteLine("=======================================");
-
+    isExecuting = false;
 }
 
-app.Run();
+
+app.RunAsync();
+UpdateContent();
+
+// Watch for file changes
+FileSystemWatcher musicChangeWatcher = new FileSystemWatcher();
+musicChangeWatcher.Path = musicSettings.Location;
+musicChangeWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size;
+musicChangeWatcher.Changed += FsUpdateContent;
+musicChangeWatcher.Created += FsUpdateContent;
+musicChangeWatcher.Deleted += FsUpdateContent;
+musicChangeWatcher.Renamed += FsUpdateContent;
+musicChangeWatcher.EnableRaisingEvents = true;
+
+void FsUpdateContent(object sender, FileSystemEventArgs e)
+{
+    if(isExecuting) return;
+
+    isExecuting = true;
+    UpdateContent();
+}
