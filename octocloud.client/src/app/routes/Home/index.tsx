@@ -1,5 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
-import { SettingsContext } from "../../App";
+import { useEffect, useRef, useState } from "react";
 
 import './index.css';
 
@@ -21,7 +20,6 @@ interface Music {
 }
 
 function Home() {
-  const settingsContext = useContext(SettingsContext);
 
   const [musics, setMusics] = useState<Music[]>([]);
   const [currentSong, setCurrentSong] = useState<{

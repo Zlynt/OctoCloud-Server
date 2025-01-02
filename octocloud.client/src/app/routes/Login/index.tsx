@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import './index.css';
 import { SettingsContext } from '../../App';
 
