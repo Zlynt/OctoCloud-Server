@@ -254,5 +254,5 @@ void FsUpdateContent(object sender, FileSystemEventArgs e)
     UpdateContent();
 }*/
 
-//UpdateContent();
+UpdateContent();
 app.Run();
