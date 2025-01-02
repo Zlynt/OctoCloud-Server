@@ -1,0 +1,13 @@
+
+.musicList {
+    cursor: pointer;
+    margin-bottom: 0.4vh;
+    padding: 10px;
+    background-color: #242424;
+    &:active {
+        background-color: #424242;
+    }
+    &:hover {
+        background-color: #4a4a4a;
+    }
+}

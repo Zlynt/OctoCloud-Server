@@ -235,11 +235,8 @@ async void UpdateContent() {
     isExecuting = false;
 }
 
-
-app.RunAsync();
-UpdateContent();
-
 // Watch for file changes
+/*
 FileSystemWatcher musicChangeWatcher = new FileSystemWatcher();
 musicChangeWatcher.Path = musicSettings.Location;
 musicChangeWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size;
@@ -255,4 +252,7 @@ void FsUpdateContent(object sender, FileSystemEventArgs e)
 
     isExecuting = true;
     UpdateContent();
-}
+}*/
+
+//UpdateContent();
+app.Run();

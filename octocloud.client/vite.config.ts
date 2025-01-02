@@ -43,6 +43,14 @@ export default defineConfig({
     },
     server: {
         proxy: {
+            '^/Account/Current-User': {
+                target,
+                secure: false
+            },
+            '^/Account/Login': {
+                target,
+                secure: false
+            },
             '^/Music/List': {
                 target,
                 secure: false
