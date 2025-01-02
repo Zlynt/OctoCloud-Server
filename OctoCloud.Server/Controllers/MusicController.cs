@@ -1,69 +1,105 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OctoCloud.Server.Models;
 using System.IO;
+
+using Microsoft.Extensions.Options;
+using OctoCloud.Server.Security;
+using System.Text.Json;
+// Music Settings
+using MusicSettings = OctoCloud.Settings.Music;
+// Music Fingerprinting
+using Fingerprint = OctoCloud.Server.Clients.Musicbrainz.AcoustIDClient;
+// Music
+using MusicbrainzApiReturn = OctoCloud.Server.Clients.Musicbrainz.ApiReturn;
+// MusicBrainz Client
+using MusicbrainzClient = OctoCloud.Server.Clients.Musicbrainz.MusicbrainzClient;
+using AudioFingerprint = OctoCloud.Server.Clients.Musicbrainz.AudioFingerprint;
+using MusicbrainzResult = OctoCloud.Server.Clients.Musicbrainz.Result;
+using MusicbrainzRecording = OctoCloud.Server.Clients.Musicbrainz.Recording;
+using MusicbrainzArtist = OctoCloud.Server.Clients.Musicbrainz.Artist;
+using MusicbrainzReleaseGroup = OctoCloud.Server.Clients.Musicbrainz.ReleaseGroup;
+// Music Model
+using MusicModel = OctoCloud.Server.Models.Music.Music;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text;
 
 namespace OctoCloud.Server.Controllers
 {
+
     [ApiController]
     [Route("[controller]")]
     public class MusicController : ControllerBase
     {
-        private static string fileStorageLocation = Environment.GetEnvironmentVariable("MUSIC_FOLDER") ?? "./music";
+        private readonly MusicSettings _settings;
+        private readonly IDistributedCache _distributedCache;
+        private Fingerprint _fingerprint;
+        private MusicbrainzClient _mbClient;
 
-        public MusicController() : base() {
-            if (!Directory.Exists(fileStorageLocation)) Directory.CreateDirectory(fileStorageLocation);
+        public MusicController(IOptions<MusicSettings> settings, IDistributedCache distributedCache) : base() {
+            _settings = settings.Value;
+            _distributedCache = distributedCache;
 
-            Console.WriteLine($"Music Folder Location: {fileStorageLocation}");
+            _fingerprint = new Fingerprint();
+            _mbClient = new MusicbrainzClient(_settings.ApiKey);
+
+            if (!Directory.Exists(_settings.Location)) Directory.CreateDirectory(_settings.Location);
+
         }
 
-        private static readonly IEnumerable<MusicModel> musicList = new[]
-        {
-            new MusicModel{
-                Id="1",
-                Title = "Fly Away (INUKSHUK REMIX)",
-                Artists=["THEFATRAT", "ANJULIE"],
-                Album="Fly Away",
-                AlbumImageURL="https://static.wixstatic.com/media/1f923f_96bfedf75d25413baba7427d16ac0692~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90/TheFatRat%20-%20Fly%20Away.jpg",
-                StreamUrl="https://static.wixstatic.com/mp3/80cc5d_40909e0b38bd44c49576164e34d29e85.mp3?dn=FLY%20AWAY%20INUKSHUK%20REMIX.mp3"
-            }
-        };
+        //[Authorize]
+        [HttpGet("List")]
+        public async Task<IActionResult> List() {
+            string cacheKey = "Music/List";
 
-        [HttpGet("")]
-        public MusicModel[] Get() {
-            //musicList.ToArray();
-            List<MusicModel> musics = new List<MusicModel>();
-            int counter = 0;
-            foreach (string localFilePath in Directory.GetFiles(Path.GetFullPath(fileStorageLocation), "*", SearchOption.AllDirectories))
-            {
-                string remoteFilePath = localFilePath.Replace(Path.GetFullPath(fileStorageLocation), "/Music/files").Replace("\\", "/");
-                Console.WriteLine(localFilePath);
-                musics.Add(new MusicModel
-                {
-                    Id = counter+"",
-                    Title = Path.GetFileNameWithoutExtension(remoteFilePath),
-                    //Artists = [],
-                    //Album = "",
-                    //AlbumImageURL = "",
-                    StreamUrl = remoteFilePath
-                });
-                counter++;
+            var cacheEntry = await _distributedCache.GetAsync(cacheKey);
+            string musicListSerializedRedis;
+            if(cacheEntry != null) {
+                musicListSerializedRedis = Encoding.UTF8.GetString(cacheEntry);
+                return Content(musicListSerializedRedis, "application/json");
             }
-            return musics.ToArray();
+
+            MusicModel[] musicList = MusicModel.GetAllMusic();
+
+            musicListSerializedRedis = JsonSerializer.Serialize(musicList);
+            
+            var cacheOptions = new DistributedCacheEntryOptions()
+                .SetAbsoluteExpiration(DateTime.Now.AddMinutes(30))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            await _distributedCache.SetAsync(
+                cacheKey, 
+                Encoding.UTF8.GetBytes(musicListSerializedRedis),
+                cacheOptions
+            );
+
+
+            return Content(musicListSerializedRedis, "application/json");
         }
 
+        //[Authorize]
         [HttpGet("files/{*fileName}")]
-        public async Task<IActionResult> Download(string fileName)
+        public IActionResult Download(string fileName)
         {
-            var filePath = Path.GetFullPath(Path.Combine(fileStorageLocation, fileName));
+            var filePath = Path.GetFullPath(Path.Combine(_settings.Location, fileName));
 
             if (!System.IO.File.Exists(filePath))
             {
                 return NotFound();
             }
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
 
-            return PhysicalFile(filePath, "application/octet-stream", Path.GetFileName(filePath));
+            switch (extension)
+            {
+                case ".mp3": extension = "audio/mpeg"; break;
+                case ".wav": extension = "audio/wav"; break;
+                case ".ogg": extension = "audio/ogg"; break;
+                case ".flac": extension = "audio/flac"; break;
+                default: extension = "application/octet-stream"; break;
+            }
+
+            return PhysicalFile(filePath, extension, Path.GetFileName(filePath));
         }
     }
 }

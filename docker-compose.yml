@@ -1,0 +1,14 @@
+version: "3.4"
+services:
+  octocloud:
+    container_name: octocloud
+    image: ghcr.io/ivaft/octocloud-server:dev
+    ports:
+      - 8555:8080
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - Music__Location=$Music__Location
+      - Music__ApiKey=$Music__ApiKey
+    restart: unless-stopped
